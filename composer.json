@@ -1,0 +1,40 @@
+{
+    "name": "discord-broadcaster/web-edition",
+    "description": "Professional Discord Broadcasting Tool with Web Interface",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Discord Broadcaster Pro",
+            "email": "support@discordbroadcaster.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-pdo": "*",
+        "ext-sqlite3": "*",
+        "ext-curl": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-json": "*"
+    },
+    "autoload": {
+        "files": [
+            "env-loader.php",
+            "database.php"
+        ]
+    },
+    "scripts": {
+        "start": "php -S localhost:8000",
+        "worker": "php start-broadcast-worker.php",
+        "setup": [
+            "php database.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

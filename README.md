@@ -75,16 +75,29 @@ A powerful, web-based Discord broadcasting solution that allows users to send ma
 
 ## 🌐 Deployment Options
 
-### Railway Deployment
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
+### Railway Deployment (Recommended)
+1. **Push to GitHub:**
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/yourusername/discord-broadcaster-pro.git
+   git push -u origin main
+   ```
 
-# Login and deploy
-railway login
-railway init
-railway up
-```
+2. **Deploy on Railway:**
+   - Go to [Railway.app](https://railway.app)
+   - Click "Deploy from GitHub repo"
+   - Select your repository
+   - Railway will automatically detect it's a PHP project
+   - Add environment variables in Railway dashboard
+
+3. **Configure Environment Variables in Railway:**
+   - `DISCORD_CLIENT_ID`: Your Discord application client ID
+   - `DISCORD_CLIENT_SECRET`: Your Discord application client secret
+   - `DISCORD_BOT_TOKEN`: Your Discord bot token
+   - `DISCORD_REDIRECT_URI`: `https://your-app.railway.app/complete-auth.php`
 
 ### Traditional Web Hosting
 1. Upload all files to your web hosting

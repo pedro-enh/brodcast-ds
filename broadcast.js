@@ -380,7 +380,7 @@ function resetBroadcast() {
     showToast('Ready for new broadcast', 'info');
 }
 
-// Enhanced sendBroadcast function with new features
+// Enhanced sendBroadcast function with queue system
 async function sendBroadcast() {
     const message = messageText.value.trim();
     const targetType = document.querySelector('input[name="targetType"]:checked').value;
@@ -402,14 +402,13 @@ async function sendBroadcast() {
                      targetType === 'online' ? 'online members only' : 
                      'offline members only';
     
-    const mentionText = mentions ? ' (with mentions enabled)' : '';
     const delayText = delay > 5 ? ' with safe delays' : delay > 2 ? ' with recommended delays' : ' with fast delivery';
     
-    if (!confirm(`🚀 Ready to broadcast?\n\n📊 Target: ${targetText}\n⏱️ Delay: ${delay}s${delayText}\n🏷️ Mentions: ${mentions ? 'Enabled' : 'Disabled'}\n\nThis will send your message to the selected members. Continue?`)) {
+    if (!confirm(`🚀 Ready to queue broadcast?\n\n📊 Target: ${targetText}\n⏱️ Delay: ${delay}s${delayText}\n🏷️ Mentions: ${mentions ? 'Enabled' : 'Disabled'}\n\nYour broadcast will be queued and processed in the background. You can continue using the site while it's being sent. Continue?`)) {
         return;
     }
     
-    showLoading('🚀 Starting Broadcast...', 'Initializing anti-ban protection and message delivery...');
+    showLoading('📋 Queuing Broadcast...', 'Adding your broadcast to the processing queue...');
     
     try {
         const response = await fetch('broadcast.php', {
@@ -431,15 +430,184 @@ async function sendBroadcast() {
         const result = await response.json();
         
         if (result.success) {
-            showResults(result);
-            showToast(`✅ Broadcast completed! ${result.sent_count} messages sent successfully.`, 'success');
+            showToast(`✅ Broadcast queued successfully! ID: ${result.broadcast_id}`, 'success');
+            showBroadcastStatus(result.broadcast_id);
+            startStatusPolling(result.broadcast_id);
         } else {
-            throw new Error(result.error || 'Failed to send broadcast');
+            throw new Error(result.error || 'Failed to queue broadcast');
         }
     } catch (error) {
-        showToast('❌ Failed to send broadcast: ' + error.message, 'error');
+        showToast('❌ Failed to queue broadcast: ' + error.message, 'error');
     } finally {
         hideLoading();
+    }
+}
+
+// New function to show broadcast status
+function showBroadcastStatus(broadcastId) {
+    const statusSection = document.createElement('section');
+    statusSection.className = 'card';
+    statusSection.id = 'broadcastStatusSection';
+    statusSection.innerHTML = `
+        <div class="card-header">
+            <h2><i class="fas fa-clock"></i> Broadcast Status</h2>
+        </div>
+        <div class="card-body">
+            <div class="broadcast-status">
+                <div class="status-info">
+                    <div class="status-item">
+                        <span class="status-label">Broadcast ID:</span>
+                        <span class="status-value" id="broadcastId">${broadcastId}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="broadcastStatus">Queued</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Progress:</span>
+                        <span class="status-value" id="broadcastProgress">0%</span>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="statusProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="broadcast-stats" id="broadcastStats" style="display: none;">
+                    <div class="stat-item">
+                        <span class="stat-number" id="statusSentCount">0</span>
+                        <span class="stat-label">Sent</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="statusFailedCount">0</span>
+                        <span class="stat-label">Failed</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="statusTotalCount">0</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                </div>
+                <div class="status-actions">
+                    <button class="btn btn-info btn-small" onclick="refreshBroadcastStatus('${broadcastId}')">
+                        <i class="fas fa-refresh"></i>
+                        Refresh Status
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert after message section
+    messageSection.parentNode.insertBefore(statusSection, messageSection.nextSibling);
+    statusSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// New function to poll broadcast status
+let statusPollingInterval = null;
+
+function startStatusPolling(broadcastId) {
+    // Clear any existing polling
+    if (statusPollingInterval) {
+        clearInterval(statusPollingInterval);
+    }
+    
+    statusPollingInterval = setInterval(async () => {
+        await refreshBroadcastStatus(broadcastId);
+    }, 3000); // Poll every 3 seconds
+}
+
+function stopStatusPolling() {
+    if (statusPollingInterval) {
+        clearInterval(statusPollingInterval);
+        statusPollingInterval = null;
+    }
+}
+
+// New function to refresh broadcast status
+async function refreshBroadcastStatus(broadcastId) {
+    try {
+        const response = await fetch('broadcast.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'get_broadcast_status',
+                broadcast_id: broadcastId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            updateBroadcastStatusDisplay(result.broadcast);
+        }
+    } catch (error) {
+        console.error('Failed to refresh broadcast status:', error);
+    }
+}
+
+// New function to update status display
+function updateBroadcastStatusDisplay(broadcast) {
+    const statusElement = document.getElementById('broadcastStatus');
+    const progressElement = document.getElementById('broadcastProgress');
+    const progressBar = document.getElementById('statusProgressBar');
+    const statsElement = document.getElementById('broadcastStats');
+    
+    if (!statusElement) return;
+    
+    // Update status
+    let statusText = broadcast.status;
+    let statusClass = '';
+    
+    switch (broadcast.status) {
+        case 'pending':
+            statusText = '⏳ Pending';
+            statusClass = 'status-pending';
+            break;
+        case 'processing':
+            statusText = '🚀 Processing';
+            statusClass = 'status-processing';
+            break;
+        case 'completed':
+            statusText = '✅ Completed';
+            statusClass = 'status-completed';
+            stopStatusPolling();
+            break;
+        case 'failed':
+            statusText = '❌ Failed';
+            statusClass = 'status-failed';
+            stopStatusPolling();
+            break;
+    }
+    
+    statusElement.textContent = statusText;
+    statusElement.className = `status-value ${statusClass}`;
+    
+    // Update progress
+    const progress = broadcast.progress || 0;
+    progressElement.textContent = `${progress}%`;
+    progressBar.style.width = `${progress}%`;
+    
+    // Update stats if available
+    if (broadcast.total_members > 0) {
+        statsElement.style.display = 'flex';
+        document.getElementById('statusSentCount').textContent = broadcast.sent_count || 0;
+        document.getElementById('statusFailedCount').textContent = broadcast.failed_count || 0;
+        document.getElementById('statusTotalCount').textContent = broadcast.total_members || 0;
+    }
+    
+    // Show final results if completed
+    if (broadcast.status === 'completed') {
+        showResults({
+            sent_count: broadcast.sent_count,
+            failed_count: broadcast.failed_count,
+            total_targeted: broadcast.total_members,
+            failed_users: [] // You can enhance this to show actual failed users
+        });
+        showToast(`🎉 Broadcast completed! ${broadcast.sent_count} messages sent successfully.`, 'success');
+    } else if (broadcast.status === 'failed') {
+        showToast(`❌ Broadcast failed: ${broadcast.error_message || 'Unknown error'}`, 'error');
     }
 }
 

@@ -1,5 +1,7 @@
 <?php
 session_start();
+require_once 'broadcast-queue.php';
+require_once 'database.php';
 
 // Load configuration
 try {
@@ -15,6 +17,8 @@ if (!isset($_SESSION['discord_user'])) {
 }
 
 $user = $_SESSION['discord_user'];
+$queue = new BroadcastQueue();
+$db = new Database();
 
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -40,7 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $target_type = $input['target_type'] ?? 'all';
             $delay = $input['delay'] ?? 2;
             $enable_mentions = $input['enable_mentions'] ?? false;
-            echo json_encode(sendBroadcast($bot_token, $guild_id, $message, $target_type, $delay, $enable_mentions));
+            echo json_encode(queueBroadcast($user, $guild_id, $message, $target_type, $delay, $enable_mentions, $bot_token));
+            break;
+            
+        case 'get_broadcast_status':
+            $broadcast_id = $input['broadcast_id'] ?? '';
+            echo json_encode(getBroadcastStatus($broadcast_id));
+            break;
+            
+        case 'get_user_broadcasts':
+            echo json_encode(getUserBroadcasts($user['id']));
             break;
             
         default:
@@ -224,6 +237,88 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
         $error_message = isset($error_data['message']) ? $error_data['message'] : 'Unknown error';
         return ['success' => false, 'error' => $error_message];
     }
+}
+
+function queueBroadcast($user, $guild_id, $message, $target_type, $delay, $enable_mentions, $bot_token) {
+    global $queue, $db;
+    
+    try {
+        // Get or create user in database
+        $user_data = $db->query("SELECT * FROM users WHERE discord_id = ?", [$user['id']]);
+        
+        if (!$user_data) {
+            // Create user if doesn't exist
+            $db->query("INSERT INTO users (discord_id, username, credits) VALUES (?, ?, ?)", 
+                      [$user['id'], $user['username'], 0]);
+            $user_id = $db->getLastInsertId();
+        } else {
+            $user_id = $user_data[0]['id'];
+        }
+        
+        // Check if user has enough credits (simplified - you can add wallet integration here)
+        // For now, we'll allow free broadcasts
+        
+        // Add broadcast to queue
+        $broadcast_id = $queue->addBroadcast(
+            $user_id,
+            $user['id'],
+            $guild_id,
+            $message,
+            $target_type,
+            $delay,
+            $enable_mentions,
+            $bot_token
+        );
+        
+        if ($broadcast_id) {
+            return [
+                'success' => true,
+                'broadcast_id' => $broadcast_id,
+                'message' => 'Broadcast queued successfully! It will be processed in the background.',
+                'status' => 'queued'
+            ];
+        } else {
+            return [
+                'success' => false,
+                'error' => 'Failed to queue broadcast'
+            ];
+        }
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'error' => 'Database error: ' . $e->getMessage()
+        ];
+    }
+}
+
+function getBroadcastStatus($broadcast_id) {
+    global $queue;
+    
+    $broadcast = $queue->getBroadcastStatus($broadcast_id);
+    
+    if ($broadcast) {
+        return [
+            'success' => true,
+            'broadcast' => $broadcast
+        ];
+    } else {
+        return [
+            'success' => false,
+            'error' => 'Broadcast not found'
+        ];
+    }
+}
+
+function getUserBroadcasts($discord_user_id) {
+    global $queue;
+    
+    $broadcasts = $queue->getUserBroadcasts($discord_user_id);
+    
+    return [
+        'success' => true,
+        'broadcasts' => $broadcasts
+    ];
 }
 ?>
 <!DOCTYPE html>

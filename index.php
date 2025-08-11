@@ -50,9 +50,13 @@ $user = isset($_SESSION['discord_user']) ? $_SESSION['discord_user'] : null;
                                 </div>
                             </div>
                         </div>
+                        <a href="wallet.php" class="btn btn-info btn-small">
+                            <i class="fas fa-wallet"></i>
+                            Wallet
+                        </a>
                         <a href="broadcast.php" class="btn btn-primary btn-small">
                             <i class="fas fa-broadcast-tower"></i>
-                            Start Broadcasting
+                            Broadcast
                         </a>
                         <a href="logout.php" class="btn btn-secondary btn-small">
                             <i class="fas fa-sign-out-alt"></i>

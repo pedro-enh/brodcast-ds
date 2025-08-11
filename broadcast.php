@@ -261,6 +261,10 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                             <i class="fas fa-home"></i>
                             Home
                         </a>
+                        <a href="wallet.php" class="btn btn-info btn-small">
+                            <i class="fas fa-wallet"></i>
+                            Wallet
+                        </a>
                         <a href="logout.php" class="btn btn-secondary btn-small">
                             <i class="fas fa-sign-out-alt"></i>
                             Logout

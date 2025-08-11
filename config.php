@@ -13,7 +13,7 @@ return [
     
     // Your website URL
     // This value is loaded from .env file or Railway environment variables
-    'REDIRECT_URI' => env('REDIRECT_URI', 'https://yourdomain.com/auth.php'),
+    'REDIRECT_URI' => env('REDIRECT_URI', 'https://brodcast-ds-production.up.railway.app/auth.php'),
     
     // Bot Token (required for broadcasting functionality)
     // This value is loaded from .env file or Railway environment variables
@@ -24,3 +24,4 @@ return [
     'DEBUG' => env('DEBUG', false)
 ];
 ?>
+

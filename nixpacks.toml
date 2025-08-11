@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["php81", "php81Extensions.pdo", "php81Extensions.sqlite3", "php81Extensions.curl", "php81Extensions.mbstring", "php81Extensions.openssl", "php81Extensions.json"]
+nixPkgs = ["php81", "php81Extensions.pdo", "php81Extensions.sqlite3", "php81Extensions.curl", "php81Extensions.mbstring", "php81Extensions.openssl"]
 
 [phases.build]
-cmds = ["echo 'PHP project - no build step required'"]
+cmds = ["echo 'PHP project ready'"]
 
 [start]
-cmd = "php -S 0.0.0.0:$PORT -t ."
+cmd = "php -S 0.0.0.0:$PORT"

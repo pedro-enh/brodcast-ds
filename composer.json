@@ -15,8 +15,7 @@
         "ext-sqlite3": "*",
         "ext-curl": "*",
         "ext-mbstring": "*",
-        "ext-openssl": "*",
-        "ext-json": "*"
+        "ext-openssl": "*"
     },
     "autoload": {
         "files": [

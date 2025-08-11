@@ -34,7 +34,7 @@ A powerful, web-based Discord broadcasting solution that allows users to send ma
 ## 🚀 Quick Start
 
 ### Prerequisites
-- PHP 7.4 or higher
+- PHP 8.1 or higher
 - Web server (Apache/Nginx)
 - SQLite support
 - cURL extension

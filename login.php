@@ -6,7 +6,7 @@ try {
     // Fallback configuration if config.php doesn't exist
     $config = [
         'DISCORD_CLIENT_ID' => '1404415002269712394',
-        'DISCORD_CLIENT_SECRET' => '_IkY6jLnzkm9Sm06km0-4pKsUcpfe9P8',
+        'DISCORD_CLIENT_SECRET' => 'xxEFeapSbG0SOhPNxsoQxMFZCCpj2ZgX',
         'REDIRECT_URI' => 'https://brodcast-ds-production.up.railway.app/auth.php'
     ];
 }
@@ -23,4 +23,5 @@ $discord_oauth_url = 'https://discord.com/api/oauth2/authorize?' . http_build_qu
 header('Location: ' . $discord_oauth_url);
 exit;
 ?>
+
 

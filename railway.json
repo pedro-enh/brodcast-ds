@@ -3,8 +3,8 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "php -S 0.0.0.0:$PORT",
-    "healthcheckPath": "/test.php",
+    "startCommand": "php -S 0.0.0.0:$PORT -t . index.php",
+    "healthcheckPath": "/",
     "restartPolicyType": "ON_FAILURE"
   }
 }

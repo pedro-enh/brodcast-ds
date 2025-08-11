@@ -5,4 +5,4 @@ nixPkgs = ["php81", "php81Extensions.pdo", "php81Extensions.sqlite3", "php81Exte
 cmds = ["echo 'PHP project ready'"]
 
 [start]
-cmd = "php -S 0.0.0.0:$PORT"
+cmd = "php -S 0.0.0.0:$PORT -t . index.php"

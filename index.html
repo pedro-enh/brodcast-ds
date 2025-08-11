@@ -106,18 +106,8 @@
     </div>
 
     <script>
-        // Redirect to PHP version if available
-        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-            fetch('index.php')
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = 'index.php';
-                    }
-                })
-                .catch(() => {
-                    // PHP not available, stay on HTML page
-                });
-        }
+        // Redirect to PHP version immediately
+        window.location.href = 'index.php';
     </script>
 </body>
 </html>

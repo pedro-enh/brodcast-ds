@@ -13,7 +13,7 @@ try {
     $config = [
         'DISCORD_CLIENT_ID' => '1404415002269712394',
         'DISCORD_CLIENT_SECRET' => '_IkY6jLnzkm9Sm06km0-4pKsUcpfe9P8',
-        'REDIRECT_URI' => 'https://brodcast-discord-pro.42web.io/auth.php'
+        'REDIRECT_URI' => 'https://brodcast-ds-production.up.railway.app/auth.php'
     ];
 }
 
@@ -128,3 +128,4 @@ $_SESSION['access_token'] = $access_token;
 header('Location: index.php?login=success');
 exit;
 ?>
+

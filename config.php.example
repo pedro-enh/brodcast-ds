@@ -1,0 +1,16 @@
+<?php
+// Copy this file to config.php and fill in your Discord application credentials
+
+return [
+    // Discord OAuth Configuration
+    // Get these from https://discord.com/developers/applications
+    'DISCORD_CLIENT_ID' => 'YOUR_DISCORD_CLIENT_ID_HERE',
+    'DISCORD_CLIENT_SECRET' => 'YOUR_DISCORD_CLIENT_SECRET_HERE',
+    
+    // Your website URL (change this to your actual domain)
+    'REDIRECT_URI' => 'https://brodcast-discord-pro.42web.io/auth.php',
+    
+    // Bot Token (optional - for future features)
+    'BOT_TOKEN' => 'YOUR_BOT_TOKEN_HERE'
+];
+?>

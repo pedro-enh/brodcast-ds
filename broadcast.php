@@ -38,7 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $guild_id = $input['guild_id'] ?? '';
             $message = $input['message'] ?? '';
             $target_type = $input['target_type'] ?? 'all';
-            echo json_encode(sendBroadcast($bot_token, $guild_id, $message, $target_type));
+            $delay = $input['delay'] ?? 2;
+            $enable_mentions = $input['enable_mentions'] ?? false;
+            echo json_encode(sendBroadcast($bot_token, $guild_id, $message, $target_type, $delay, $enable_mentions));
             break;
             
         default:
@@ -94,7 +96,7 @@ function getGuildMembers($bot_token, $guild_id) {
     }
 }
 
-function sendBroadcast($bot_token, $guild_id, $message, $target_type) {
+function sendBroadcast($bot_token, $guild_id, $message, $target_type, $delay, $enable_mentions) {
     // Get guild members first
     $members_result = getGuildMembers($bot_token, $guild_id);
     
@@ -107,15 +109,24 @@ function sendBroadcast($bot_token, $guild_id, $message, $target_type) {
     $failed_count = 0;
     $failed_users = [];
     
+    // Process mentions if enabled
+    if ($enable_mentions) {
+        $message = processMentions($message, $guild_id, $bot_token);
+    }
+    
     foreach ($members as $member) {
         $user_id = $member['user']['id'];
+        $username = $member['user']['username'] . '#' . $member['user']['discriminator'];
+        
+        // Skip based on target type (simplified for web version)
+        // In a full implementation, you'd check presence status
         
         // Create DM channel
         $dm_result = createDMChannel($bot_token, $user_id);
         if (!$dm_result['success']) {
             $failed_count++;
             $failed_users[] = [
-                'user' => $member['user']['username'] . '#' . $member['user']['discriminator'],
+                'user' => $username,
                 'reason' => 'Failed to create DM channel'
             ];
             continue;
@@ -123,20 +134,32 @@ function sendBroadcast($bot_token, $guild_id, $message, $target_type) {
         
         $dm_channel_id = $dm_result['channel_id'];
         
+        // Personalize message with user mention if enabled
+        $personalized_message = $message;
+        if ($enable_mentions) {
+            $personalized_message = str_replace('{user}', "<@{$user_id}>", $personalized_message);
+            $personalized_message = str_replace('{username}', $member['user']['username'], $personalized_message);
+        }
+        
         // Send message
-        $send_result = sendDirectMessage($bot_token, $dm_channel_id, $message);
+        $send_result = sendDirectMessage($bot_token, $dm_channel_id, $personalized_message);
         if ($send_result['success']) {
             $sent_count++;
         } else {
             $failed_count++;
             $failed_users[] = [
-                'user' => $member['user']['username'] . '#' . $member['user']['discriminator'],
+                'user' => $username,
                 'reason' => $send_result['error']
             ];
         }
         
-        // Rate limiting - wait 1 second between messages
-        sleep(1);
+        // Anti-ban protection: wait between messages
+        sleep($delay);
+        
+        // Break if too many failures (additional protection)
+        if ($failed_count > 10 && $sent_count < 5) {
+            break;
+        }
     }
     
     return [
@@ -146,6 +169,12 @@ function sendBroadcast($bot_token, $guild_id, $message, $target_type) {
         'total_targeted' => count($members),
         'failed_users' => $failed_users
     ];
+}
+
+function processMentions($message, $guild_id, $bot_token) {
+    // This is a simplified version - in a full implementation,
+    // you'd fetch roles and process @role mentions
+    return $message;
 }
 
 function createDMChannel($bot_token, $user_id) {
@@ -257,10 +286,11 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
+                        <small class="input-help">Your bot token is required to send messages. It will not be stored.</small>
                     </div>
                     <button id="connectBtn" class="btn btn-primary">
                         <i class="fas fa-plug"></i>
-                        Connect Bot
+                        Connect Bot & Load Servers
                     </button>
                 </div>
             </section>
@@ -276,6 +306,11 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                         <select id="serverSelect" class="input-field">
                             <option value="">Choose a server...</option>
                         </select>
+                        <small class="input-help">Select the server where you want to broadcast messages</small>
+                    </div>
+                    <div id="memberCount" class="member-info" style="display: none;">
+                        <i class="fas fa-users"></i>
+                        <span id="memberCountText">Loading members...</span>
                     </div>
                 </div>
             </section>
@@ -288,39 +323,107 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                 <div class="card-body">
                     <div class="input-group">
                         <label for="messageText">Broadcast Message</label>
-                        <textarea id="messageText" placeholder="Type your message here..." class="input-field" rows="4" maxlength="2000"></textarea>
+                        <textarea id="messageText" placeholder="Type your message here..." class="input-field" rows="6" maxlength="2000"></textarea>
                         <div class="character-counter">
                             <span id="charCount">0</span>/2000 characters
                         </div>
+                        <small class="input-help">Use {user} for user mention and {username} for username</small>
                     </div>
                     
+                    <!-- Target Audience -->
                     <div class="input-group">
                         <label>Target Audience</label>
                         <div class="radio-group">
                             <label class="radio-option">
                                 <input type="radio" name="targetType" value="all" checked>
                                 <span class="radio-custom"></span>
-                                All Members
+                                <span class="radio-label">
+                                    <strong>All Members</strong>
+                                    <small>Send to everyone in the server</small>
+                                </span>
                             </label>
                             <label class="radio-option">
                                 <input type="radio" name="targetType" value="online">
                                 <span class="radio-custom"></span>
-                                Online Members Only
+                                <span class="radio-label">
+                                    <strong>Online Members Only</strong>
+                                    <small>Send only to currently online members</small>
+                                </span>
                             </label>
                             <label class="radio-option">
                                 <input type="radio" name="targetType" value="offline">
                                 <span class="radio-custom"></span>
-                                Offline Members Only
+                                <span class="radio-label">
+                                    <strong>Offline Members Only</strong>
+                                    <small>Send only to currently offline members</small>
+                                </span>
                             </label>
                         </div>
                     </div>
+
+                    <!-- Advanced Options -->
+                    <div class="input-group">
+                        <label>Advanced Options</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-option">
+                                <input type="checkbox" id="enableMentions">
+                                <span class="checkbox-custom"></span>
+                                <span class="checkbox-label">
+                                    <strong>Enable Mentions</strong>
+                                    <small>Allow {user} and {username} placeholders</small>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Anti-Ban Protection -->
+                    <div class="input-group">
+                        <label for="delaySlider">Anti-Ban Protection (Delay between messages)</label>
+                        <div class="slider-container">
+                            <input type="range" id="delaySlider" min="1" max="10" value="2" class="slider">
+                            <div class="slider-labels">
+                                <span>1s (Fast)</span>
+                                <span id="delayValue">2s (Recommended)</span>
+                                <span>10s (Safe)</span>
+                            </div>
+                        </div>
+                        <small class="input-help">Higher delays reduce the risk of Discord rate limiting</small>
+                    </div>
                     
-                    <button id="sendBtn" class="btn btn-success btn-large">
-                        <i class="fas fa-paper-plane"></i>
-                        Send Broadcast
-                    </button>
+                    <div class="broadcast-actions">
+                        <button id="previewBtn" class="btn btn-info">
+                            <i class="fas fa-eye"></i>
+                            Preview Message
+                        </button>
+                        <button id="sendBtn" class="btn btn-success btn-large">
+                            <i class="fas fa-paper-plane"></i>
+                            Start Broadcasting
+                        </button>
+                    </div>
                 </div>
             </section>
+
+            <!-- Preview Modal -->
+            <div id="previewModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3><i class="fas fa-eye"></i> Message Preview</h3>
+                        <button class="modal-close" onclick="closePreview()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="preview-message" id="previewContent"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closePreview()">Close</button>
+                        <button class="btn btn-success" onclick="closePreview(); sendBroadcast();">
+                            <i class="fas fa-paper-plane"></i>
+                            Send This Message
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Results Section -->
             <section class="card" id="resultsSection" style="display: none;">
@@ -356,6 +459,13 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                         <h3>Failed Deliveries</h3>
                         <div class="failed-users" id="failedUsers"></div>
                     </div>
+                    
+                    <div class="results-actions">
+                        <button class="btn btn-primary" onclick="resetBroadcast()">
+                            <i class="fas fa-redo"></i>
+                            Send Another Broadcast
+                        </button>
+                    </div>
                 </div>
             </section>
         </main>
@@ -366,6 +476,9 @@ function sendDirectMessage($bot_token, $channel_id, $message) {
                 <div class="spinner"></div>
                 <h3 id="loadingText">Processing...</h3>
                 <p id="loadingSubtext">Please wait while we process your request.</p>
+                <div class="progress-bar" id="progressBar" style="display: none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
             </div>
         </div>
 

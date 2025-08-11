@@ -2,6 +2,7 @@
 let currentBotToken = '';
 let selectedGuildId = '';
 let isConnected = false;
+let currentMembers = [];
 
 // DOM elements
 const botTokenInput = document.getElementById('botToken');
@@ -9,9 +10,15 @@ const toggleTokenBtn = document.getElementById('toggleToken');
 const connectBtn = document.getElementById('connectBtn');
 const serverSection = document.getElementById('serverSection');
 const serverSelect = document.getElementById('serverSelect');
+const memberCount = document.getElementById('memberCount');
+const memberCountText = document.getElementById('memberCountText');
 const messageSection = document.getElementById('messageSection');
 const messageText = document.getElementById('messageText');
 const charCount = document.getElementById('charCount');
+const enableMentions = document.getElementById('enableMentions');
+const delaySlider = document.getElementById('delaySlider');
+const delayValue = document.getElementById('delayValue');
+const previewBtn = document.getElementById('previewBtn');
 const sendBtn = document.getElementById('sendBtn');
 const resultsSection = document.getElementById('resultsSection');
 const loadingOverlay = document.getElementById('loadingOverlay');
@@ -35,6 +42,12 @@ function initializeEventListeners() {
     
     // Message input
     messageText.addEventListener('input', updateCharacterCount);
+    
+    // Delay slider
+    delaySlider.addEventListener('input', updateDelayValue);
+    
+    // Preview button
+    previewBtn.addEventListener('click', showPreview);
     
     // Send broadcast
     sendBtn.addEventListener('click', sendBroadcast);
@@ -304,13 +317,206 @@ function getToastIcon(type) {
     }
 }
 
+// New functions for enhanced features
+function updateDelayValue() {
+    const value = delaySlider.value;
+    let label = '';
+    
+    if (value <= 2) {
+        label = `${value}s (Fast)`;
+    } else if (value <= 5) {
+        label = `${value}s (Recommended)`;
+    } else {
+        label = `${value}s (Safe)`;
+    }
+    
+    delayValue.textContent = label;
+}
+
+function showPreview() {
+    const message = messageText.value.trim();
+    const enableMentionsChecked = enableMentions.checked;
+    
+    if (!message) {
+        showToast('Please enter a message first', 'warning');
+        return;
+    }
+    
+    let previewMessage = message;
+    
+    if (enableMentionsChecked) {
+        previewMessage = previewMessage.replace(/{user}/g, '@ExampleUser');
+        previewMessage = previewMessage.replace(/{username}/g, 'ExampleUser');
+    }
+    
+    document.getElementById('previewContent').innerHTML = `
+        <div class="discord-message">
+            <div class="message-content">${previewMessage.replace(/\n/g, '<br>')}</div>
+        </div>
+    `;
+    
+    document.getElementById('previewModal').style.display = 'flex';
+}
+
+function closePreview() {
+    document.getElementById('previewModal').style.display = 'none';
+}
+
+function resetBroadcast() {
+    // Reset form
+    messageText.value = '';
+    updateCharacterCount();
+    document.querySelector('input[name="targetType"][value="all"]').checked = true;
+    enableMentions.checked = false;
+    delaySlider.value = 2;
+    updateDelayValue();
+    
+    // Hide results
+    resultsSection.style.display = 'none';
+    
+    // Scroll to message section
+    messageSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
+    showToast('Ready for new broadcast', 'info');
+}
+
+// Enhanced sendBroadcast function with new features
+async function sendBroadcast() {
+    const message = messageText.value.trim();
+    const targetType = document.querySelector('input[name="targetType"]:checked').value;
+    const delay = parseInt(delaySlider.value);
+    const mentions = enableMentions.checked;
+    
+    if (!message) {
+        showToast('Please enter a message to broadcast', 'error');
+        return;
+    }
+    
+    if (!selectedGuildId) {
+        showToast('Please select a server first', 'error');
+        return;
+    }
+    
+    // Enhanced confirmation dialog
+    const targetText = targetType === 'all' ? 'all members' : 
+                     targetType === 'online' ? 'online members only' : 
+                     'offline members only';
+    
+    const mentionText = mentions ? ' (with mentions enabled)' : '';
+    const delayText = delay > 5 ? ' with safe delays' : delay > 2 ? ' with recommended delays' : ' with fast delivery';
+    
+    if (!confirm(`🚀 Ready to broadcast?\n\n📊 Target: ${targetText}\n⏱️ Delay: ${delay}s${delayText}\n🏷️ Mentions: ${mentions ? 'Enabled' : 'Disabled'}\n\nThis will send your message to the selected members. Continue?`)) {
+        return;
+    }
+    
+    showLoading('🚀 Starting Broadcast...', 'Initializing anti-ban protection and message delivery...');
+    
+    try {
+        const response = await fetch('broadcast.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'send_broadcast',
+                guild_id: selectedGuildId,
+                message: message,
+                target_type: targetType,
+                delay: delay,
+                enable_mentions: mentions,
+                bot_token: currentBotToken
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showResults(result);
+            showToast(`✅ Broadcast completed! ${result.sent_count} messages sent successfully.`, 'success');
+        } else {
+            throw new Error(result.error || 'Failed to send broadcast');
+        }
+    } catch (error) {
+        showToast('❌ Failed to send broadcast: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Enhanced onServerSelect with member loading
+async function onServerSelect() {
+    selectedGuildId = serverSelect.value;
+    
+    if (selectedGuildId) {
+        // Show member count loading
+        memberCount.style.display = 'block';
+        memberCountText.textContent = 'Loading members...';
+        
+        try {
+            const response = await fetch('broadcast.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'get_members',
+                    guild_id: selectedGuildId,
+                    bot_token: currentBotToken
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                currentMembers = result.members;
+                memberCountText.innerHTML = `
+                    <strong>${result.members.length}</strong> members found 
+                    <small>(excluding bots)</small>
+                `;
+                showMessageSection();
+            } else {
+                memberCountText.textContent = 'Failed to load members';
+                showToast('Failed to load server members', 'error');
+            }
+        } catch (error) {
+            memberCountText.textContent = 'Error loading members';
+            showToast('Error loading server members: ' + error.message, 'error');
+        }
+    } else {
+        memberCount.style.display = 'none';
+        hideMessageSection();
+    }
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-    // Escape to close loading overlay
-    if (e.key === 'Escape' && loadingOverlay.style.display === 'flex') {
-        // Don't close if actively broadcasting
-        if (!loadingText.textContent.includes('Sending Broadcast')) {
-            hideLoading();
+    // Escape to close loading overlay or preview modal
+    if (e.key === 'Escape') {
+        if (document.getElementById('previewModal').style.display === 'flex') {
+            closePreview();
+        } else if (loadingOverlay.style.display === 'flex') {
+            // Don't close if actively broadcasting
+            if (!loadingText.textContent.includes('Sending Broadcast')) {
+                hideLoading();
+            }
         }
+    }
+    
+    // Ctrl+Enter to send broadcast
+    if (e.ctrlKey && e.key === 'Enter' && messageText.value.trim()) {
+        sendBroadcast();
+    }
+    
+    // Ctrl+P to preview
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        showPreview();
+    }
+});
+
+// Click outside modal to close
+document.getElementById('previewModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePreview();
     }
 });

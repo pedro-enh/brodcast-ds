@@ -14,7 +14,7 @@ try {
 // Discord OAuth URL - using the new auth-simple.php handler
 $discord_oauth_url = 'https://discord.com/api/oauth2/authorize?' . http_build_query([
     'client_id' => $config['DISCORD_CLIENT_ID'],
-    'redirect_uri' => 'https://brodcast-ds-production.up.railway.app/auth-simple.php',
+    'redirect_uri' => 'https://brodcast-ds-production.up.railway.app/auth.php',
     'response_type' => 'code',
     'scope' => 'identify'
 ]);
@@ -23,5 +23,6 @@ $discord_oauth_url = 'https://discord.com/api/oauth2/authorize?' . http_build_qu
 header('Location: ' . $discord_oauth_url);
 exit;
 ?>
+
 
 
